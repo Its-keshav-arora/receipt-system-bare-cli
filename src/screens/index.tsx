@@ -1,24 +1,19 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-  StyleSheet,
-} from 'react-native';
-import Icon from 'react-native-vector-icons/Feather';
+import { View, Text, Alert, StyleSheet, Image } from 'react-native';
+import { TextInput, Button, Provider as PaperProvider } from 'react-native-paper';
+import Feather from 'react-native-vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../navigation/RootNavigator';
+import type { RootStackParamList } from '../AppNavigator';
 
-type NavProp = NativeStackNavigationProp<RootStackParamList>;
+type NavProp = NativeStackNavigationProp<RootStackParamList, 'Index'>;
 
 export default function Index() {
   const BACKEND_URL = 'https://receipt-system-zf7s.onrender.com';
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
+  const [showPass, setShowPass] = useState(false);
   const navigation = useNavigation<NavProp>();
 
   const handleSubmit = async () => {
@@ -49,89 +44,149 @@ export default function Index() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Welcome 👋</Text>
-      <Text style={styles.subtitle}>Sign in to your account</Text>
+      <View style={styles.card}>
+        <Text style={styles.title}>Welcome 👋</Text>
+        <Text style={styles.subtitle}>Sign in to continue</Text>
 
-      {/* Email Input */}
-      <View style={styles.inputGroup}>
-        <Icon name="mail" size={20} color="gray" />
+        {/* Email Input */}
         <TextInput
-          style={styles.input}
-          placeholder="Email address"
-          placeholderTextColor="#888"
-          keyboardType="email-address"
-          autoCapitalize="none"
+          mode="flat"
+          label="Email Address"
+          placeholder="Enter your email"
           value={email}
           onChangeText={setEmail}
+          left={
+            <TextInput.Icon
+              icon={() => (
+                <Image
+                  source={require('../../assets/icons/mail.png')}
+                  style={styles.icon}
+                />
+              )}
+            />
+          }
+          autoCapitalize="none"
+          style={[styles.input, { color: '#000000' }]}
+          theme={{
+            roundness: 10,
+            colors: {
+              primary: '#4F46E5',
+              onSurfaceVariant: '#9CA3AF',
+            },
+          }}
         />
-      </View>
 
-      {/* Password Input */}
-      <View style={styles.inputGroup}>
-        <Icon name="lock" size={20} color="gray" />
+
+
+        {/* Password Input with toggle */}
+        {/* Password Input with toggle */}
         <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="#888"
-          secureTextEntry
+          mode="flat"
+          label="Password"
+          placeholder="Enter your password"
           value={pass}
           onChangeText={setPass}
+          secureTextEntry={!showPass}
+          left={
+            <TextInput.Icon
+              icon={() => (
+                <Image
+                  source={require('../../assets/icons/lock.png')}
+                  style={styles.icon}
+                />
+              )}
+            />
+          }
+          right={
+            <TextInput.Icon
+              icon={() => (
+                <Image
+                  source={
+                    showPass
+                      ? require('../../assets/icons/eye.png') // 👁️ closed eye when hiding
+                      : require('../../assets/icons/hide.png')     // 👁️ open eye when showing
+                  }
+                  style={styles.icon}
+                />
+              )}
+              onPress={() => setShowPass(!showPass)}
+            />
+          }
+          style={[styles.input, { color: '#000000' }]}
+          theme={{
+            roundness: 10,
+            colors: {
+              primary: '#4F46E5',
+              onSurfaceVariant: '#9CA3AF',
+            },
+          }}
         />
-      </View>
 
-      {/* Submit Button */}
-      <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-        <Text style={styles.buttonText}>Login</Text>
-      </TouchableOpacity>
+
+        {/* Login Button */}
+        <Button
+          mode="contained"
+          onPress={handleSubmit}
+          style={styles.button}
+          labelStyle={styles.buttonText}
+        >
+          Login
+        </Button>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  icon: {
+    width: 20,
+    height: 20,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#EEF2FF',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: 24,
+  },
+  card: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '700',
     color: '#4F46E5',
-    marginBottom: 8,
+    marginBottom: 6,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#6B7280',
-    marginBottom: 32,
-  },
-  inputGroup: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderColor: '#D1D5DB',
-    paddingBottom: 8,
     marginBottom: 24,
+    textAlign: 'center',
   },
   input: {
-    marginLeft: 8,
-    flex: 1,
-    fontSize: 16,
-    color: '#000000',
+    marginBottom: 18,
+    backgroundColor: '#F9FAFB',
   },
   button: {
+    marginTop: 10,
+    borderRadius: 12,
     backgroundColor: '#4F46E5',
-    width: '100%',
-    paddingVertical: 12,
-    borderRadius: 16,
-    marginBottom: 16,
+    paddingVertical: 6,
   },
   buttonText: {
-    color: '#ffffff',
-    textAlign: 'center',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
+    color: '#fff',
   },
 });

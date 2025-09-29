@@ -1,21 +1,11 @@
 import React, { useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
-
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  FlatList,
-  ActivityIndicator,
-} from 'react-native';
+import { Alert, View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
 import axios from 'axios';
 import DropDownPicker from 'react-native-dropdown-picker';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../../navigation/RootNavigator';
+import type { CustomerStackParamList } from '../../navigation/CustomerStack';  // 👈 updated import
 
 type SearchType = 'box' | 'mobile' | 'name';
 
@@ -28,9 +18,9 @@ type Customer = {
   mobile: number;
 };
 
-type NavProp = NativeStackNavigationProp<RootStackParamList>;
+type NavProp = NativeStackNavigationProp<CustomerStackParamList>;
 
-const CustomerSearch = () => {
+const Customers = () => {
   const BACKEND_URL = 'https://receipt-system-zf7s.onrender.com';
   const navigation = useNavigation<NavProp>();
 
@@ -80,18 +70,14 @@ const CustomerSearch = () => {
         <View style={styles.buttonRow}>
           <TouchableOpacity
             style={styles.buttonLeft}
-            onPress={() =>
-              navigation.navigate('CustomerDetails', { customerId: item._id })
-            }
+            onPress={() => navigation.navigate('CustomerDetails', { customerId: item._id })}
           >
             <Text style={styles.viewButtonText}>View</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.buttonRight}
-            onPress={() =>
-              navigation.navigate('PayBill', { customerId: item._id })
-            }
+            onPress={() => navigation.navigate('PayBill', { customerId: item._id })}
           >
             <Text style={styles.viewButtonText}>Pay Bill</Text>
           </TouchableOpacity>
@@ -128,11 +114,7 @@ const CustomerSearch = () => {
       </TouchableOpacity>
 
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color="#007BFF"
-          style={{ marginTop: 20 }}
-        />
+        <ActivityIndicator size="large" color="#007BFF" style={{ marginTop: 20 }} />
       ) : (
         <FlatList
           data={customers}
@@ -145,7 +127,7 @@ const CustomerSearch = () => {
   );
 };
 
-export default CustomerSearch;
+export default Customers;
 
 const styles = StyleSheet.create({
   container: {

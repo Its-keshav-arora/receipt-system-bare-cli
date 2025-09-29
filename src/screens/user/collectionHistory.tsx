@@ -11,8 +11,8 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import RNFS from 'react-native-fs'; // ✅ replaces expo-file-system
-import Share from 'react-native-share'; // ✅ replaces expo-sharing
+import RNFS from 'react-native-fs';
+import Share from 'react-native-share';
 
 const BACKEND_URL = 'https://receipt-system-zf7s.onrender.com';
 

@@ -11,26 +11,18 @@ import {
   Linking,
   KeyboardAvoidingView,
   Platform,
+  PermissionsAndroid,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../../navigation/RootNavigator';
+import type { CustomerStackParamList } from '../../navigation/CustomerStack';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const base64Encode = (str: string) => {
-  return Buffer.from(str, 'utf-8').toString('base64');
-};
-
-declare const Buffer: {
-  from(
-    input: string | Uint8Array,
-    encoding?: string
-  ): { toString(encoding?: string): string };
-};
-
-let ThermalPrinter: any;
-ThermalPrinter = require('react-native-thermal-receipt-printer-image-qr');
+import {
+  BLEPrinter,
+  IBLEPrinterIdentity,
+  IPrintOptions,
+} from '@xyzsola/react-native-thermal-printer';
 
 type Customer = {
   _id: string;
@@ -42,8 +34,8 @@ type Customer = {
   currentMonthPayment: number;
 };
 
-type PayBillRouteProp = RouteProp<RootStackParamList, 'PayBill'>;
-type NavProp = NativeStackNavigationProp<RootStackParamList>;
+type PayBillRouteProp = RouteProp<CustomerStackParamList, 'PayBill'>;
+type NavProp = NativeStackNavigationProp<CustomerStackParamList, 'PayBill'>;
 
 const Payment = () => {
   const BACKEND_URL = 'https://receipt-system-zf7s.onrender.com';
@@ -58,15 +50,17 @@ const Payment = () => {
   const [waLink, setWaLink] = useState('');
   const [smsLink, setSmsLink] = useState('');
   const [receiptText, setReceiptText] = useState('');
+  const [receiptText2, setReceiptText2] = useState('');
   const [showReceipt, setShowReceipt] = useState(false);
   const [amountPaid, setAmountPaid] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Cash');
   const [address, setAddress] = useState('');
-  const [printers, setPrinters] = useState<any[]>([]);
-  const [selectedPrinter, setSelectedPrinter] = useState<any | null>(null);
-  const [showPrinterList, setShowPrinterList] = useState(false);
 
-  const [rawbtConnected, setRawbtConnected] = useState(false);
+  // Printer state
+  const [printers, setPrinters] = useState<IBLEPrinterIdentity[]>([]);
+  const [selectedPrinter, setSelectedPrinter] =
+    useState<IBLEPrinterIdentity | null>(null);
+  const [showPrinterList, setShowPrinterList] = useState(false);
 
   const paymentMethods = ['Cash', 'GPay', 'PhonePe', 'Paytm', 'Other'];
 
@@ -109,7 +103,7 @@ const Payment = () => {
 
             const { newBalance, date, time } = response.data;
 
-            const { whatsappLink, smsLink } = await generateReceipt(
+            const { whatsappLink, smsLink, receipt, receipt2 } = await generateReceipt(
               customer?.name || '',
               amountPaid,
               paymentMethod,
@@ -121,6 +115,8 @@ const Payment = () => {
 
             setWaLink(whatsappLink);
             setSmsLink(smsLink);
+            setReceiptText(receipt);
+            setReceiptText2(receipt2);
             setShowReceipt(true);
           } catch (err) {
             Alert.alert('Error', 'Failed to record payment');
@@ -140,94 +136,106 @@ const Payment = () => {
     time: string,
     newBalance: string,
     boxNumbers?: string[]
-  ): Promise<{ receipt: string; whatsappLink: string; smsLink: string }> => {
+  ): Promise<{ receipt: string; whatsappLink: string; smsLink: string, receipt2: string; }> => {
     const receiptName = await AsyncStorage.getItem('name');
     const receiptNumber = await AsyncStorage.getItem('mobile');
 
     const boxes =
       boxNumbers && boxNumbers.length > 0 ? boxNumbers.join(', ') : 'N/A';
-    const receipt = `
 
-${receiptName || 'FW / Net+'}
-Complaint : ${receiptNumber || '9217092170'}
+    const receipt = `<Printout>
+  <Text align="center">
+    ${receiptName || 'FW / Net+'}
+  </Text>
+  <NewLine />
+  <NewLine />
+  <Text align="left">Complaint:${receiptNumber || ''}</Text>
+  <NewLine />
+  <NewLine />
+  <NewLine />
 
+  <Text align="center">RECEIPT</Text>
+  <NewLine />
+  <Line lineChar="=" />
+
+  <Text align="left">Name        : ${name}</Text>
+  <NewLine />
+  <Text align="left">Date        : ${date}</Text>
+  <NewLine />
+  <Text align="left">Time        : ${time}</Text>
+  <NewLine />
+  <Text align="left">Address     : ${address}</Text>
+  <NewLine />
+  <Text align="left">Box/Id      : ${boxes}</Text>
+  <NewLine />
+  <Text align="left">Amount Paid : Rs. ${Number(amount).toFixed(2)}</Text>
+  <NewLine />
+  <Text align="left">Method      : ${method}</Text>
+  <NewLine />
+  <NewLine />
+  <Text align="left">Curr Outstanding : Rs. ${Number(newBalance).toFixed(2)}</Text>
+  <NewLine />
+  <Line lineChar="=" />
+  <NewLine />
+
+  <Text align="center">THANK YOU</Text>
+  <NewLine />
+</Printout>`;
+
+    const receipt2 = `
+  ${receiptName || 'FW / Net+'}
+  Complaint : ${receiptNumber || ''} 
+--------------------------- 
+          RECEIPT 
+--------------------------- 
+  Name : ${name} 
+  Date : ${date} 
+  Time : ${time} 
+  Address : ${address} 
+  Box/Id : ${boxes} 
+  Amount Paid : ₹${Number(amount).toFixed(2)}
+  Method : ${method} 
 ---------------------------
-                 RECEIPT
----------------------------
-Name        : ${name}
-Date        : ${date}
-Time        : ${time}
-Address     : ${address}
-Box/Id      : ${boxes}
-Amount Paid : ₹${Number(amount).toFixed(2)}
-Method      : ${method}
+ Current Outstanding : ₹${Number(newBalance).toFixed(2)} 
+ --------------------------- 
+ THANK YOU 🙏 `;
 
----------------------------
-Current Outstanding : ₹${Number(newBalance).toFixed(2)}
----------------------------
-
-             THANK YOU
-`;
-
-    const encodedMessage = encodeURIComponent(receipt);
+    const encodedMessage = encodeURIComponent(receipt2);
     const whatsappLink = `https://wa.me/91${customer?.mobile}?text=${encodedMessage}`;
     const smsLink = `sms:91${customer?.mobile}?body=${encodedMessage}`;
 
-    setReceiptText(receipt);
-    setShowReceipt(true);
-
-    return { receipt, whatsappLink, smsLink };
+    return { receipt, whatsappLink, smsLink, receipt2 };
   };
 
-  // ------------------ Rawbt Printer ------------------
-  const connectRawbt = async () => {
-    try {
-      await Linking.openURL('rawbt:');
-      setRawbtConnected(true);
-      Alert.alert('Success', 'Rawbt app opened! Connect your USB printer.');
-    } catch (err) {
-      Alert.alert(
-        'Error',
-        'Failed to open Rawbt app. Make sure it is installed.'
-      );
+  // ---------------- Permissions ----------------
+  async function requestBluetoothPermissions() {
+    if (Platform.OS === "android") {
+      if (Platform.Version >= 31) {
+        // Android 12+
+        await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_ADVERTISE,
+        ]);
+      } else {
+        // Android 11 and below
+        await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+          // ⚠️ BLUETOOTH & BLUETOOTH_ADMIN are no longer typed in RN, so force string cast:
+          "android.permission.BLUETOOTH" as any,
+          "android.permission.BLUETOOTH_ADMIN" as any,
+        ]);
+      }
     }
-  };
+  }
 
-  const printViaRawbt = async () => {
-    if (!rawbtConnected) {
-      return Alert.alert(
-        'Rawbt Not Connected',
-        'Please connect to Rawbt first.'
-      );
-    }
-
-    try {
-      const commands = [
-        '\x1B\x40',
-        '\x1B\x61\x01',
-        '-------------------------------\n',
-        '\x1B\x21\x10',
-        'RECEIPT\n',
-        '\x1B\x21\x00',
-        '-------------------------------\n',
-        receiptText + '\n',
-        '\n\n\n',
-        '\x1D\x56\x41\x03',
-      ].join('');
-
-      const base64Commands = base64Encode(commands);
-      await Linking.openURL(`rawbt:base64,${base64Commands}`);
-      Alert.alert('Success', 'Receipt sent to Rawbt printer!');
-    } catch (err) {
-      Alert.alert('Error', 'Failed to print via Rawbt.');
-    }
-  };
-  // --------------------------------------------------
-
+  // ---------------- Printer Functions ----------------
   const discoverPrinters = async () => {
     try {
-      await ThermalPrinter.BLEPrinter.init();
-      const devices = await ThermalPrinter.BLEPrinter.getDeviceList();
+      await requestBluetoothPermissions();
+      await BLEPrinter.init();
+      const devices = await BLEPrinter.getDeviceList();
       if (devices.length === 0) {
         Alert.alert('No Printers Found', 'Please pair a Bluetooth printer first.');
       } else {
@@ -239,14 +247,12 @@ Current Outstanding : ₹${Number(newBalance).toFixed(2)}
     }
   };
 
-  const connectToPrinter = async (printer: any) => {
+  const connectToPrinter = async (printer: IBLEPrinterIdentity) => {
     try {
-      await ThermalPrinter.BLEPrinter.connectPrinter(
-        printer.inner_mac_address
-      );
+      await BLEPrinter.connectPrinter(printer.innerMacAddress);
       setSelectedPrinter(printer);
       setShowPrinterList(false);
-      Alert.alert('Connected', `Connected to ${printer.device_name}`);
+      Alert.alert('Connected', `Connected to ${printer.deviceName}`);
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to connect to printer.');
     }
@@ -254,17 +260,26 @@ Current Outstanding : ₹${Number(newBalance).toFixed(2)}
 
   const printReceipt = async () => {
     if (!selectedPrinter) {
-      Alert.alert('No Printer', 'Please select a printer first.');
-      return;
+      return Alert.alert('No Printer', 'Please select a printer first.');
     }
 
     try {
-      await ThermalPrinter.BLEPrinter.printText(receiptText + '\n\n\n');
+      const options: IPrintOptions = {
+        beep: true,
+        cut: false,
+        tailingLine: true,
+        encoding: 'UTF-8',
+        codepage: 0,
+        colWidth: 32,
+      };
+      const wrappedReceipt = receiptText;
+      await BLEPrinter.print(wrappedReceipt, options);
       Alert.alert('Success', 'Receipt sent to printer!');
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to print.');
     }
   };
+  // --------------------------------------------------
 
   if (loading || !customer) {
     return (
@@ -367,84 +382,51 @@ Current Outstanding : ₹${Number(newBalance).toFixed(2)}
       {/* Receipt Modal */}
       {showReceipt && (
         <View style={styles.overlay}>
-          <ScrollView
-            style={{ flex: 1, width: '100%' }}
-            contentContainerStyle={{
-              flexGrow: 1,
-              justifyContent: 'center',
-              alignItems: 'center',
-              padding: 16,
-            }}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={styles.receiptContainer}>
+          <View style={styles.receiptContainer}>
+            <TouchableOpacity
+              onPress={() => setShowReceipt(false)}
+              style={styles.closeIcon}
+            >
+              <Text style={{ fontSize: 20, color: '#000' }}>✕</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.receiptHeader}>🧾 Receipt Preview</Text>
+
+            <ScrollView style={styles.receiptBox}>
+              <Text style={styles.receiptText}>{receiptText2}</Text>
+            </ScrollView>
+
+            <View style={styles.actionRow}>
               <TouchableOpacity
-                onPress={() => setShowReceipt(false)}
-                style={styles.closeIcon}
+                onPress={discoverPrinters}
+                style={styles.actionBtn}
               >
-                <Text style={{ fontSize: 20, color: '#000' }}>✕</Text>
+                <Text style={styles.actionBtnText}>
+                  {selectedPrinter
+                    ? `Printer: ${selectedPrinter.deviceName}`
+                    : 'Select Printer'}
+                </Text>
               </TouchableOpacity>
 
-              <Text style={styles.receiptHeader}>🧾 Receipt Preview</Text>
+              <TouchableOpacity onPress={printReceipt} style={styles.actionBtn}>
+                <Text style={styles.actionBtnText}>Print</Text>
+              </TouchableOpacity>
 
-              <ScrollView
-                style={styles.receiptBox}
-                keyboardShouldPersistTaps="handled"
+              <TouchableOpacity
+                onPress={() => Linking.openURL(waLink)}
+                style={styles.actionBtn}
               >
-                <Text style={styles.receiptText}>{receiptText}</Text>
-              </ScrollView>
+                <Text style={styles.actionBtnText}>WhatsApp</Text>
+              </TouchableOpacity>
 
-              <View style={styles.actionRow}>
-                <TouchableOpacity
-                  onPress={connectRawbt}
-                  style={[
-                    styles.actionBtn,
-                    rawbtConnected && { backgroundColor: '#4CAF50' },
-                  ]}
-                >
-                  <Text style={styles.actionBtnText}>
-                    {rawbtConnected ? 'Rawbt Connected' : 'Connect Rawbt'}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={printViaRawbt}
-                  style={styles.actionBtn}
-                >
-                  <Text style={styles.actionBtnText}>Print via Rawbt</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={discoverPrinters}
-                  style={styles.actionBtn}
-                >
-                  <Text style={styles.actionBtnText}>
-                    {selectedPrinter
-                      ? `Printer: ${selectedPrinter.device_name}`
-                      : 'Select Printer'}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={printReceipt} style={styles.actionBtn}>
-                  <Text style={styles.actionBtnText}>Print BLE</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => Linking.openURL(waLink)}
-                  style={styles.actionBtn}
-                >
-                  <Text style={styles.actionBtnText}>WhatsApp</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => Linking.openURL(smsLink)}
-                  style={styles.actionBtn}
-                >
-                  <Text style={styles.actionBtnText}>SMS</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                onPress={() => Linking.openURL(smsLink)}
+                style={styles.actionBtn}
+              >
+                <Text style={styles.actionBtnText}>SMS</Text>
+              </TouchableOpacity>
             </View>
-          </ScrollView>
+          </View>
         </View>
       )}
 
@@ -455,12 +437,12 @@ Current Outstanding : ₹${Number(newBalance).toFixed(2)}
             <Text style={styles.receiptHeader}>Select a Printer</Text>
             {printers.map((printer) => (
               <TouchableOpacity
-                key={printer.inner_mac_address}
+                key={printer.innerMacAddress}
                 style={styles.dropdownOption}
                 onPress={() => connectToPrinter(printer)}
               >
                 <Text>
-                  {printer.device_name || printer.inner_mac_address}
+                  {printer.deviceName || printer.innerMacAddress}
                 </Text>
               </TouchableOpacity>
             ))}

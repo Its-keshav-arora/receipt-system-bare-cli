@@ -17,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
-import type { RootStackParamList } from '../../navigation/RootNavigator';
+import type { CustomerStackParamList } from '../../navigation/CustomerStack';
 
 type Payment = {
   date: string;
@@ -38,8 +38,8 @@ type Customer = {
   history: Payment[];
 };
 
-type CustomerDetailRouteProp = RouteProp<RootStackParamList, 'CustomerDetails'>;
-type NavProp = NativeStackNavigationProp<RootStackParamList>;
+type CustomerDetailRouteProp = RouteProp<CustomerStackParamList, 'CustomerDetails'>;
+type NavProp = NativeStackNavigationProp<CustomerStackParamList>;
 
 const CustomerDetail = () => {
   const BACKEND_URL = 'https://receipt-system-zf7s.onrender.com';
@@ -204,7 +204,7 @@ Current Outstanding : ₹${entry.balance}
               style={styles.deleteBtn}
             >
               <Image
-                source={require('../../assets/icons/delete_button.png')}
+                source={require('../../../assets/icons/delete_button.png')}
                 style={styles.icon}
               />
             </TouchableOpacity>
