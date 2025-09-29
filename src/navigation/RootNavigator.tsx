@@ -1,24 +1,25 @@
+// navigation/RootNavigator.tsx
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Index from '../screens/index';
 import Home from '../screens/home';
-import Tabs, {TabsParamList} from './Tabs';
-
+import CustomerStack from './CustomerStack';
+import { NavigatorScreenParams } from '@react-navigation/native';
 
 export type RootStackParamList = {
-  Index: undefined; // Login screen
-  Home: undefined;  // Dashboard
-  Tabs: { screen?: keyof TabsParamList };
+  Index: undefined;
+  Home: undefined;
+  CustomerStack: NavigatorScreenParams<any>; // registered here
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator initialRouteName="Index" screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Index" component={Index} />
       <Stack.Screen name="Home" component={Home} />
-      <Stack.Screen name="Tabs" component={Tabs} />
+      <Stack.Screen name="CustomerStack" component={CustomerStack} /> 
     </Stack.Navigator>
   );
 }

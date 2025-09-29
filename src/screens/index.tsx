@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, Alert, StyleSheet, Image } from 'react-native';
-import { TextInput, Button, Provider as PaperProvider } from 'react-native-paper';
-import Feather from 'react-native-vector-icons/Feather';
+import { TextInput, Button } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../AppNavigator';
+import type { RootStackParamList } from '../navigation/RootNavigator';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, 'Index'>;
 
@@ -36,7 +35,7 @@ export default function Index() {
       await AsyncStorage.setItem('name', data.user.name);
       await AsyncStorage.setItem('mobile', data.user.mobile);
 
-      navigation.replace('Home');
+      navigation.replace('Home');  // goes to Home after login
     } catch (error: any) {
       Alert.alert('Validation', 'Wrong email or password');
     }
@@ -45,7 +44,7 @@ export default function Index() {
   return (
     <View style={styles.container}>
       <View style={styles.card}>
-        <Text style={styles.title}>Welcome 👋</Text>
+        <Text style={styles.title}>Welcome</Text>
         <Text style={styles.subtitle}>Sign in to continue</Text>
 
         {/* Email Input */}
@@ -76,10 +75,7 @@ export default function Index() {
           }}
         />
 
-
-
-        {/* Password Input with toggle */}
-        {/* Password Input with toggle */}
+        {/* Password Input */}
         <TextInput
           mode="flat"
           label="Password"
@@ -103,8 +99,8 @@ export default function Index() {
                 <Image
                   source={
                     showPass
-                      ? require('../../assets/icons/eye.png') // 👁️ closed eye when hiding
-                      : require('../../assets/icons/hide.png')     // 👁️ open eye when showing
+                      ? require('../../assets/icons/eye.png')
+                      : require('../../assets/icons/hide.png')
                   }
                   style={styles.icon}
                 />
@@ -122,7 +118,6 @@ export default function Index() {
           }}
         />
 
-
         {/* Login Button */}
         <Button
           mode="contained"
@@ -138,10 +133,7 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
-  icon: {
-    width: 20,
-    height: 20,
-  },
+  icon: { width: 20, height: 20 },
   container: {
     flex: 1,
     backgroundColor: '#EEF2FF',
@@ -174,19 +166,12 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     textAlign: 'center',
   },
-  input: {
-    marginBottom: 18,
-    backgroundColor: '#F9FAFB',
-  },
+  input: { marginBottom: 18, backgroundColor: '#F9FAFB' },
   button: {
     marginTop: 10,
     borderRadius: 12,
     backgroundColor: '#4F46E5',
     paddingVertical: 6,
   },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
+  buttonText: { fontSize: 16, fontWeight: '600', color: '#fff' },
 });

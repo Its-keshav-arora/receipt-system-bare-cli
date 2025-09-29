@@ -60,7 +60,7 @@ const AddCustomer = () => {
       );
 
       Alert.alert('Success', 'Customer created successfully');
-      navigation.goBack(); // ✅ replaces expo-router's router.back()
+      navigation.goBack();
     } catch (err) {
       console.log(err);
       Alert.alert('Error', 'Failed to create customer');

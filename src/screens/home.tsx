@@ -1,27 +1,30 @@
 import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Image, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useNavigationState } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../AppNavigator';
+import { RootStackParamList } from '../navigation/RootNavigator';
 import RNFS from 'react-native-fs';
 import Share from 'react-native-share';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
 const Home = () => {
-  const BACKEND_URL = "https://receipt-system-zf7s.onrender.com";
+  const BACKEND_URL = 'https://receipt-system-zf7s.onrender.com';
   const navigation = useNavigation<NavProp>();
+  const state = useNavigationState(state => state);
+  console.log('NAV STATE:', JSON.stringify(state, null, 2));
 
   const handleLogout = async () => {
     try {
       await AsyncStorage.removeItem('token');
-      await AsyncStorage.removeItem('user');
-      Alert.alert("Logged Out", "You have been logged out.");
+      await AsyncStorage.removeItem('name');
+      await AsyncStorage.removeItem('mobile');
+      Alert.alert('Logged Out', 'You have been logged out.');
       navigation.replace('Index');
     } catch (err) {
-      console.error("Logout error:", err);
-      Alert.alert("Error", "Something went wrong while logging out.");
+      console.error('Logout error:', err);
+      Alert.alert('Error', 'Something went wrong while logging out.');
     }
   };
 
@@ -47,9 +50,7 @@ const Home = () => {
               const options = {
                 fromUrl: downloadUrl,
                 toFile: filePath,
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
+                headers: { Authorization: `Bearer ${token}` },
               };
 
               const result = await RNFS.downloadFile(options).promise;
@@ -68,7 +69,7 @@ const Home = () => {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -76,18 +77,21 @@ const Home = () => {
     <View style={styles.container}>
       <Text style={styles.title}>📋 Dashboard</Text>
       <View style={styles.menuBox}>
+        {/* View Customers */}
         <TouchableOpacity
           style={styles.option}
-          onPress={() => navigation.navigate('Customers')}
+          onPress={() =>
+            navigation.navigate('CustomerStack', {
+              screen: 'Customers',
+            })
+          }
         >
           <Text style={styles.icon}>📊</Text>
           <Text style={styles.text}>View Customers</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.option}
-          onPress={handleExportExcel}
-        >
+        {/* Export Excel (local download) */}
+        <TouchableOpacity style={styles.option} onPress={handleExportExcel}>
           <Image
             source={require('../../assets/icons/excel_icon.jpg')}
             style={styles.icon}
@@ -95,9 +99,15 @@ const Home = () => {
           <Text style={styles.text}>Export Excel</Text>
         </TouchableOpacity>
 
+        {/* Import Excel */}
         <TouchableOpacity
           style={styles.option}
-          onPress={() => navigation.navigate('Import')}
+          onPress={() =>
+            navigation.navigate('CustomerStack', 
+              { 
+                screen: 'ImportPage' 
+              })
+          }
         >
           <Image
             source={require('../../assets/icons/excel_icon.jpg')}
@@ -106,21 +116,28 @@ const Home = () => {
           <Text style={styles.text}>Import Excel</Text>
         </TouchableOpacity>
 
+        {/* Collection Insights */}
         <TouchableOpacity
           style={styles.option}
-          onPress={() => navigation.navigate('CollectionHistory')}
+          onPress={() =>
+            navigation.navigate('CustomerStack', { screen: 'CollectionHistory' })
+          }
         >
           <Text style={styles.text}>📅 Collection Insights</Text>
         </TouchableOpacity>
 
+        {/* Add Customer */}
         <TouchableOpacity
           style={styles.option}
-          onPress={() => navigation.navigate('AddCustomer')}
+          onPress={() =>
+            navigation.navigate('CustomerStack', { screen: 'AddCustomer' })
+          }
         >
           <Text style={styles.icon}>➕</Text>
           <Text style={styles.text}>Add Customer</Text>
         </TouchableOpacity>
 
+        {/* Logout */}
         <TouchableOpacity
           style={[styles.option, styles.logout]}
           onPress={handleLogout}
@@ -134,7 +151,12 @@ const Home = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f2f2f2', paddingTop: 60, alignItems: 'center' },
+  container: {
+    flex: 1,
+    backgroundColor: '#f2f2f2',
+    paddingTop: 60,
+    alignItems: 'center',
+  },
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 40, color: '#333' },
   menuBox: { justifyContent: 'space-evenly', width: '85%' },
   option: {
