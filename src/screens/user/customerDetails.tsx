@@ -11,6 +11,7 @@ import {
   Image,
   Linking,
   Platform,
+  PermissionsAndroid,
 } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,6 +19,11 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { CustomerStackParamList } from '../../navigation/CustomerStack';
+import {
+  BLEPrinter,
+  IBLEPrinterIdentity,
+  IPrintOptions,
+} from '@xyzsola/react-native-thermal-printer';
 
 type Payment = {
   date: string;
@@ -52,6 +58,14 @@ const CustomerDetail = () => {
   const [saving, setSaving] = useState(false);
   const [newBox, setNewBox] = useState('');
   const [showHistory, setShowHistory] = useState(false);
+
+  // Printer states
+  const [paying, setPaying] = useState(false);
+  const [receiptText2, setReceiptText2] = useState('');
+  const [printers, setPrinters] = useState<IBLEPrinterIdentity[]>([]);
+  const [selectedPrinter, setSelectedPrinter] =
+    useState<IBLEPrinterIdentity | null>(null);
+  const [showPrinterList, setShowPrinterList] = useState(false);
 
   // Receipt modal states
   const [showReceipt, setShowReceipt] = useState(false);
@@ -105,9 +119,9 @@ const CustomerDetail = () => {
           setCustomer((prev) =>
             prev
               ? {
-                  ...prev,
-                  boxNumbers: prev.boxNumbers.filter((b) => b !== boxNumber),
-                }
+                ...prev,
+                boxNumbers: prev.boxNumbers.filter((b) => b !== boxNumber),
+              }
               : prev
           ),
       },
@@ -173,6 +187,46 @@ Current Outstanding : ₹${entry.balance}
              THANK YOU
     `;
 
+    const receipt2 = `<Printout>
+  <Text align="center">
+    ${receiptName || 'FW / Net+'}
+  </Text>
+  <NewLine />
+  <NewLine />
+  <Text align="left">Complaint:${receiptNumber || ''}</Text>
+  <NewLine />
+  <NewLine />
+  <NewLine />
+
+  <Text align="center">RECEIPT</Text>
+  <NewLine />
+  <Line lineChar="=" />
+
+  <Text align="left">Name        : ${customer.name}</Text>
+  <NewLine />
+  <Text align="left">Date        : ${entry.date}</Text>
+  <NewLine />
+  <Text align="left">Time        : ${entry.time}</Text>
+  <NewLine />
+  <Text align="left">Address     : ${customer.address}</Text>
+  <NewLine />
+  <Text align="left">Box/Id      : ${boxes}</Text>
+  <NewLine />
+  <Text align="left">Amount Paid : Rs. ${Number(entry.amount).toFixed(2)}</Text>
+  <NewLine />
+  <Text align="left">Method      : ${entry.method}</Text>
+  <NewLine />
+  <NewLine />
+  <Text align="left">Curr Outstanding : Rs. ${Number(entry.balance).toFixed(2)}</Text>
+  <NewLine />
+  <Line lineChar="=" />
+  <NewLine />
+
+  <Text align="center">THANK YOU</Text>
+  <NewLine />
+</Printout>`;
+    setReceiptText2(receipt2);
+
     const encodedMessage = encodeURIComponent(receipt);
     const whatsappLink = `https://wa.me/91${customer.mobile}?text=${encodedMessage}`;
     const smsLink = `sms:91${customer.mobile}?body=${encodedMessage}`;
@@ -190,6 +244,78 @@ Current Outstanding : ₹${entry.balance}
       </View>
     );
   }
+
+  // printer functions & permissions : 
+  async function requestBluetoothPermissions() {
+    if (Platform.OS === "android") {
+      if (Platform.Version >= 31) {
+        // Android 12+
+        await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_ADVERTISE,
+        ]);
+      } else {
+        // Android 11 and below
+        await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+          // ⚠️ BLUETOOTH & BLUETOOTH_ADMIN are no longer typed in RN, so force string cast:
+          "android.permission.BLUETOOTH" as any,
+          "android.permission.BLUETOOTH_ADMIN" as any,
+        ]);
+      }
+    }
+  }
+
+  const discoverPrinters = async () => {
+    try {
+      await requestBluetoothPermissions();
+      await BLEPrinter.init();
+      const devices = await BLEPrinter.getDeviceList();
+      if (devices.length === 0) {
+        Alert.alert('No Printers Found', 'Please pair a Bluetooth printer first.');
+      } else {
+        setPrinters(devices);
+        setShowPrinterList(true);
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to scan printers.');
+    }
+  };
+
+  const connectToPrinter = async (printer: IBLEPrinterIdentity) => {
+    try {
+      await BLEPrinter.connectPrinter(printer.innerMacAddress);
+      setSelectedPrinter(printer);
+      setShowPrinterList(false);
+      Alert.alert('Connected', `Connected to ${printer.deviceName}`);
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to connect to printer.');
+    }
+  };
+
+  const printReceipt = async () => {
+    if (!selectedPrinter) {
+      return Alert.alert('No Printer', 'Please select a printer first.');
+    }
+
+    try {
+      const options: IPrintOptions = {
+        beep: true,
+        cut: false,
+        tailingLine: true,
+        encoding: 'UTF-8',
+        codepage: 0,
+        colWidth: 32,
+      };
+      const wrappedReceipt = receiptText2;
+      await BLEPrinter.print(wrappedReceipt, options);
+      Alert.alert('Success', 'Receipt sent to printer!');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to print.');
+    }
+  };
 
   if (!customer) return null;
 
@@ -353,9 +479,17 @@ Current Outstanding : ₹${entry.balance}
 
               <View style={styles.actionRow}>
                 <TouchableOpacity
-                  onPress={() => console.log('print')}
+                  onPress={discoverPrinters}
                   style={styles.actionBtn}
                 >
+                  <Text style={styles.actionBtnText}>
+                    {selectedPrinter
+                      ? `Printer: ${selectedPrinter.deviceName}`
+                      : 'Select Printer'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={printReceipt} style={styles.actionBtn}>
                   <Text style={styles.actionBtnText}>Print</Text>
                 </TouchableOpacity>
 
@@ -377,6 +511,30 @@ Current Outstanding : ₹${entry.balance}
           </ScrollView>
         </View>
       )}
+
+      {showPrinterList && (
+        <View style={styles.overlay}>
+          <View style={styles.receiptContainer}>
+            <Text style={styles.receiptHeader}>Select a Printer</Text>
+            {printers.map((printer) => (
+              <TouchableOpacity
+                key={printer.innerMacAddress}
+                style={styles.dropdownOption}
+                onPress={() => connectToPrinter(printer)}
+              >
+                <Text>
+                  {printer.deviceName || printer.innerMacAddress}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity onPress={() => setShowPrinterList(false)}>
+              <Text style={{ textAlign: 'center', marginTop: 10 }}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+
     </View>
   );
 };
@@ -405,6 +563,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
     borderRadius: 12,
     alignItems: 'center',
+  },
+  dropdownOption: {
+    backgroundColor: '#E0E0E0',
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 8,
   },
   boxText: { flex: 1, fontSize: 16 },
   deleteBtn: {
