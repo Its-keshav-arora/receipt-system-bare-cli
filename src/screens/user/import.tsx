@@ -10,6 +10,7 @@ import {
 import { Dirs, FileSystem } from 'react-native-file-access';
 import XLSX from 'xlsx';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import DocumentPicker from 'react-native-document-picker';
 
 interface CustomerRow {
   name?: string;
@@ -40,6 +41,8 @@ const ImportPage = () => {
         },
         body: JSON.stringify({ customers: fileData }),
       });
+      console.log("this is file data : ", fileData);
+      console.log("This is result : ", res);
 
       const result = await res.json();
 
@@ -55,28 +58,30 @@ const ImportPage = () => {
 
   const handleFilePick = async () => {
     try {
-      // 🔎 Hardcoded example: "customers.xlsx" must be placed inside DocumentDir
-      const filePath = `${Dirs.DocumentDir}/customers.xlsx`;
+      const res = await DocumentPicker.pickSingle({
+        type: [DocumentPicker.types.allFiles],
+      });
 
-      const exists = await FileSystem.exists(filePath);
-      if (!exists) {
-        Alert.alert(
-          'File Missing',
-          `Please copy "customers.xlsx" into:\n${Dirs.DocumentDir}`
-        );
-        return;
-      }
+      // On Android, res.uri looks like: content://...
+      const fileUri = res.uri;
 
-      const bstr = await FileSystem.readFile(filePath, 'base64');
+      // Read as base64
+      const bstr = await FileSystem.readFile(fileUri, 'base64');
+
+      // Parse with XLSX
       const wb = XLSX.read(bstr, { type: 'base64' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const data: CustomerRow[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
       setFileData(data);
       Alert.alert('✅ Success', 'Excel file loaded successfully!');
-    } catch (error: any) {
-      console.error('File pick error:', error);
-      Alert.alert('Error', 'Could not read the Excel file.');
+    } catch (err: any) {
+      if (DocumentPicker.isCancel(err)) {
+        console.log('User cancelled picker');
+      } else {
+        console.error('File pick error:', err);
+        Alert.alert('Error', 'Could not read the Excel file.');
+      }
     }
   };
 

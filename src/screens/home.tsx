@@ -44,8 +44,9 @@ const Home = () => {
                 return;
               }
 
+              // Save in public Downloads folder
+              const filePath = `${RNFS.DownloadDirectoryPath}/CustomerReport.csv`;
               const downloadUrl = `${BACKEND_URL}/api/customer/export`;
-              const filePath = `${RNFS.DocumentDirectoryPath}/CustomerReport.csv`;
 
               const options = {
                 fromUrl: downloadUrl,
@@ -54,10 +55,17 @@ const Home = () => {
               };
 
               const result = await RNFS.downloadFile(options).promise;
+
               if (result.statusCode === 200) {
+                const exists = await RNFS.exists(filePath);
+                if (!exists) {
+                  Alert.alert('Error', 'File not found after download.');
+                  return;
+                }
+
                 await Share.open({
-                  url: 'file://' + filePath,
-                  type: 'text/csv',
+                  url: 'file://' + filePath,   // or try without `file://` if it fails
+                  type: 'text/csv',            // ✅ correct type for CSV
                   filename: 'CustomerReport.csv',
                 });
               } else {
@@ -72,6 +80,8 @@ const Home = () => {
       ],
     );
   };
+
+
 
   return (
     <View style={styles.container}>
@@ -103,9 +113,9 @@ const Home = () => {
         <TouchableOpacity
           style={styles.option}
           onPress={() =>
-            navigation.navigate('CustomerStack', 
-              { 
-                screen: 'ImportPage' 
+            navigation.navigate('CustomerStack',
+              {
+                screen: 'ImportPage'
               })
           }
         >
@@ -136,6 +146,43 @@ const Home = () => {
           <Text style={styles.icon}>➕</Text>
           <Text style={styles.text}>Add Customer</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.option, { backgroundColor: '#FF6B6B' }]}
+          onPress={async () => {
+            Alert.alert(
+              'Confirm Deletion',
+              'This will permanently delete all customers for your account. Are you sure?',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete',
+                  onPress: async () => {
+                    try {
+                      const token = await AsyncStorage.getItem('token');
+                      const res = await fetch(`${BACKEND_URL}/api/customer/deleteAll`, {
+                        method: 'DELETE',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          Authorization: `Bearer ${token}`,
+                        },
+                      });
+                      const data = await res.json();
+                      Alert.alert('Success', data.message || 'All customers deleted.');
+                    } catch (error) {
+                      console.error('Delete error:', error);
+                      Alert.alert('Error', 'Failed to delete customers.');
+                    }
+                  },
+                },
+              ]
+            );
+          }}
+        >
+          <Text style={styles.icon}>🗑️</Text>
+          <Text style={styles.text}>Delete All Customers</Text>
+        </TouchableOpacity>
+
 
         {/* Logout */}
         <TouchableOpacity

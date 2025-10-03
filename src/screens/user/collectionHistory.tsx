@@ -58,15 +58,24 @@ const CollectionHistory = () => {
   };
 
   const handleExport = async () => {
-    if (!fromDate || !toDate) return;
+    if (!fromDate || !toDate) {
+      Alert.alert('Select dates', 'Please select both From and To dates');
+      return;
+    }
 
     try {
       const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        Alert.alert('Error', 'No token found');
+        return;
+      }
+
       const url = `${BACKEND_URL}/api/customer/history/export?from=${formatForApi(
         fromDate
       )}&to=${formatForApi(toDate)}`;
 
-      const filePath = `${RNFS.DocumentDirectoryPath}/CollectionHistory.xlsx`;
+      // ✅ Save to Downloads instead of private folder
+      const filePath = `${RNFS.DownloadDirectoryPath}/CollectionHistory.xlsx`;
 
       const downloadRes = await RNFS.downloadFile({
         fromUrl: url,
@@ -75,26 +84,34 @@ const CollectionHistory = () => {
       }).promise;
 
       if (downloadRes.statusCode === 200) {
+        const exists = await RNFS.exists(filePath);
+        if (!exists) {
+          Alert.alert('Error', 'File not found after download.');
+          return;
+        }
+
         await Share.open({
-          url: 'file://' + filePath,
+          url: 'file://' + filePath, // try without `file://` if needed
           type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          filename: 'CollectionHistory.xlsx',
         });
       } else {
-        Alert.alert('Error', 'Download failed');
+        Alert.alert('Error', `Download failed (${downloadRes.statusCode})`);
       }
     } catch (err) {
-      console.error(err);
+      console.error('Export error:', err);
       Alert.alert('Error', 'Failed to export history.');
     }
   };
 
+
   const formatDate = (date: Date | null) =>
     date
       ? `${date.getDate().toString().padStart(2, '0')}/${(
-          date.getMonth() + 1
-        )
-          .toString()
-          .padStart(2, '0')}/${date.getFullYear().toString().slice(-2)}`
+        date.getMonth() + 1
+      )
+        .toString()
+        .padStart(2, '0')}/${date.getFullYear().toString().slice(-2)}`
       : 'Select';
 
   return (
